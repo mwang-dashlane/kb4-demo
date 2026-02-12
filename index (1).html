@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashlane x KnowBe4 Integration Demo</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        /* Custom Animations */
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slide-in-left { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slide-in-right { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        .animate-in { animation-duration: 0.5s; animation-fill-mode: both; }
+        .fade-in { animation-name: fade-in; }
+        .slide-in-from-bottom { animation-name: slide-up; }
+        .slide-in-from-left { animation-name: slide-in-left; }
+        .slide-in-from-right { animation-name: slide-in-right; }
+        .zoom-in-95 { animation: zoom-in 0.1s ease-out forwards; }
+        
+        /* Hint Animation */
+        @keyframes hint-pulse {
+            0% { box-shadow: 0 0 0 0px rgba(234, 179, 8, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(234, 179, 8, 0); }
+            100% { box-shadow: 0 0 0 0px rgba(234, 179, 8, 0); }
+        }
+        .hint-active {
+            animation: hint-pulse 1.5s infinite;
+            border-color: #EAB308 !important; /* Yellow-500 */
+            z-index: 50;
+            position: relative;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        // --- Icons ---
+        const Icon = ({ size = 24, className = "", children }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+        );
+        const Shield = (p) => <Icon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></Icon>;
+        const Settings = (p) => <Icon {...p}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></Icon>;
+        const Users = (p) => <Icon {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></Icon>;
+        const Layout = (p) => <Icon {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></Icon>;
+        const Plus = (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></Icon>;
+        const Search = (p) => <Icon {...p}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></Icon>;
+        const Check = (p) => <Icon {...p}><polyline points="20 6 9 17 4 12" /></Icon>;
+        const AlertTriangle = (p) => <Icon {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></Icon>;
+        const ArrowRight = (p) => <Icon {...p}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></Icon>;
+        const Menu = (p) => <Icon {...p}><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></Icon>;
+        const Bell = (p) => <Icon {...p}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></Icon>;
+        const Clock = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Icon>;
+        const Briefcase = (p) => <Icon {...p}><rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></Icon>;
+        const Play = (p) => <Icon {...p}><polygon points="5 3 19 12 5 21 5 3" /></Icon>;
+        const Save = (p) => <Icon {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></Icon>;
+        const ChevronDown = (p) => <Icon {...p}><polyline points="6 9 12 15 18 9" /></Icon>;
+        const LogOut = (p) => <Icon {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></Icon>;
+        const User = (p) => <Icon {...p}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></Icon>;
+        const ChevronLeft = (p) => <Icon {...p}><polyline points="15 18 9 12 15 6" /></Icon>;
+        const HelpCircle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></Icon>;
+        const Loader = (p) => <Icon {...p} className={`animate-spin ${p.className}`}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></Icon>;
+        const Mail = (p) => <Icon {...p}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></Icon>;
+
+        // --- Constants & Data ---
+
+        const SCENES = {
+            INTRO: 'intro',
+            KB4_DASHBOARD: 'kb4_dashboard',
+            KB4_SETTINGS_LANDING: 'kb4_settings_landing',
+            KB4_API_KEYS: 'kb4_api_keys',
+            DASHLANE_SETUP: 'dashlane_setup',
+            DASHLANE_SIMULATE: 'dashlane_simulate',
+            KB4_TIMELINE: 'kb4_timeline',
+            KB4_SMART_GROUP: 'kb4_smart_group',
+            KB4_TRAINING_TRANSITION: 'kb4_training_transition',
+            KB4_CAMPAIGN: 'kb4_campaign',
+            COMPLETE: 'complete'
+        };
+
+        const SCENE_ORDER = [
+            SCENES.INTRO,
+            SCENES.KB4_DASHBOARD,
+            SCENES.KB4_SETTINGS_LANDING,
+            SCENES.KB4_API_KEYS,
+            SCENES.DASHLANE_SETUP,
+            SCENES.DASHLANE_SIMULATE,
+            SCENES.KB4_TIMELINE,
+            SCENES.KB4_SMART_GROUP,
+            SCENES.KB4_TRAINING_TRANSITION,
+            SCENES.KB4_CAMPAIGN,
+            SCENES.COMPLETE
+        ];
+
+        const DEMO_STEPS = {
+            // INTRO step removed to prevent overlay from showing
+            [SCENES.KB4_DASHBOARD]: { instruction: "Start by navigating to the Account Settings. Click your user profile in the top right.", target: "user-menu-btn" },
+            [SCENES.KB4_SETTINGS_LANDING]: { instruction: "In Account Settings, navigate to the 'Account Integrations' tab to set up the connection.", target: "tab-integrations" },
+            [SCENES.KB4_API_KEYS]: { instruction: "Generate a User Event API Key to allow Dashlane to push risk data.", target: "create-key-btn" },
+            [SCENES.DASHLANE_SETUP]: { instruction: "Switch to the Dashlane Admin Console. Configure the new 'KnowBe4' integration.", target: "kb4-card-btn" },
+            [SCENES.DASHLANE_SIMULATE]: { instruction: "The integration is live. Choose a simulation scenario to test the data flow.", target: "sim-console-area" }, 
+            [SCENES.KB4_TIMELINE]: { instruction: "Back in KnowBe4, verify the event in the Timeline. To take action, click the 'Groups' sub-tab.", target: "subnav-groups" },
+            [SCENES.KB4_SMART_GROUP]: { instruction: "Create a 'Smart Group' that automatically catches anyone who triggers this specific Dashlane event.", target: "save-group-btn" },
+            [SCENES.KB4_TRAINING_TRANSITION]: { instruction: "Great. The group is ready. Now go to the 'Training' tab to create the remediation campaign.", target: "nav-training" },
+            [SCENES.KB4_CAMPAIGN]: { instruction: "Finally, create a Remedial Training Campaign that targets that Smart Group.", target: "content-dropdown" }
+        };
+
+        // --- Components ---
+
+        const Button = ({ children, onClick, variant = 'primary', className = '', id, disabled }) => {
+            const baseStyle = "px-4 py-2 rounded font-medium transition-colors text-sm flex items-center justify-center gap-2";
+            const variants = {
+                primary: "bg-blue-600 text-white hover:bg-blue-700",
+                secondary: "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50",
+                dashlane: "bg-[#016372] text-white hover:bg-[#014F5B]", 
+                kb4: "bg-[#F47721] text-white hover:bg-[#D96616]",
+                ghost: "bg-transparent text-gray-600 hover:bg-gray-100",
+                success: "bg-green-100 text-green-700 border border-green-200 cursor-default"
+            };
+            return (
+                <button 
+                id={id} 
+                onClick={onClick} 
+                disabled={disabled}
+                className={`${baseStyle} ${variants[variant]} ${className} ${disabled && variant !== 'success' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                {children}
+                </button>
+            );
+        };
+
+        const GuideOverlay = ({ currentStep, onHint, onBack, canGoBack }) => {
+            if (!currentStep) return null;
+            return (
+                <div className="fixed bottom-10 left-0 right-0 mx-auto w-[400px] bg-gray-900/80 text-white p-4 rounded-xl shadow-2xl backdrop-blur-sm z-40 border border-gray-700 flex flex-col gap-2 animate-in slide-in-from-bottom fade-in duration-500">
+                <div className="flex justify-between items-start">
+                    <div className="flex gap-3 items-center">
+                        <div className="bg-blue-500 rounded-full p-1.5 h-fit shrink-0">
+                            <Play size={14} fill="currentColor" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-sm mb-0.5">Demo Guide</h3>
+                            <p className="text-gray-300 text-xs leading-relaxed">{currentStep.instruction}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex gap-2 justify-end border-t border-gray-700 pt-2 mt-1">
+                        <button 
+                            onClick={onBack} 
+                            disabled={!canGoBack}
+                            className={`text-xs px-3 py-1.5 rounded flex items-center gap-1 hover:bg-gray-800 transition-colors ${!canGoBack ? 'opacity-30 cursor-not-allowed' : 'text-gray-300'}`}
+                        >
+                            <ChevronLeft size={12} /> Back
+                        </button>
+                        <button 
+                            onClick={onHint}
+                            className="text-xs px-3 py-1.5 rounded flex items-center gap-1 bg-gray-800 hover:bg-gray-700 text-yellow-400 font-medium transition-colors"
+                        >
+                            <HelpCircle size={12} /> Hint
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const RiskScoreGraph = () => (
+             <div className="w-full h-64 relative">
+                <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-400">
+                    <span>100</span>
+                    <span>75</span>
+                    <span>50</span>
+                    <span>25</span>
+                    <span>0</span>
+                </div>
+                <div className="ml-8 h-full relative border-l border-b border-gray-200">
+                    <svg viewBox="0 0 600 200" className="w-full h-full overflow-visible">
+                        <line x1="0" y1="50" x2="600" y2="50" stroke="#f3f4f6" strokeWidth="1" />
+                        <line x1="0" y1="100" x2="600" y2="100" stroke="#f3f4f6" strokeWidth="1" />
+                        <line x1="0" y1="150" x2="600" y2="150" stroke="#f3f4f6" strokeWidth="1" />
+                        <path d="M0,80 L100,76 L200,70 L300,64 L400,60 L450,84 L500,83.2" fill="none" stroke="#F47721" strokeWidth="3" />
+                        <path d="M0,80 L100,76 L200,70 L300,64 L400,60 L450,84 L500,83.2 V200 H0 Z" fill="url(#gradient)" opacity="0.1" />
+                        <defs><linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#F47721" /><stop offset="100%" stopColor="white" /></linearGradient></defs>
+                        <circle cx="0" cy="80" r="4" fill="white" stroke="#F47721" strokeWidth="2" />
+                        <circle cx="100" cy="76" r="4" fill="white" stroke="#F47721" strokeWidth="2" />
+                        <circle cx="200" cy="70" r="4" fill="white" stroke="#F47721" strokeWidth="2" />
+                        <circle cx="300" cy="64" r="4" fill="white" stroke="#F47721" strokeWidth="2" />
+                        <circle cx="400" cy="60" r="4" fill="white" stroke="#F47721" strokeWidth="2" />
+                        <circle cx="450" cy="84" r="4" fill="white" stroke="red" strokeWidth="2" /> 
+                        <circle cx="500" cy="83.2" r="4" fill="white" stroke="#F47721" strokeWidth="2" />
+                    </svg>
+                </div>
+                <div className="ml-8 mt-2 flex justify-between text-xs text-gray-400"><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span><span>Jan</span></div>
+            </div>
+        );
+
+        // --- KB4 Header Component ---
+        const KB4Header = ({ onNavigate, activeTab, onNavigateSettings }) => {
+            const [menuOpen, setMenuOpen] = useState(false);
+            const navItems = [
+                { id: 'dashboard', label: 'Dashboard', icon: <Layout size={18}/> },
+                { id: 'users', label: 'Users', icon: <Users size={18}/> },
+                { id: 'training', label: 'Training', icon: <Briefcase size={18}/> },
+                { id: 'phishing', label: 'Phishing', icon: <Icon size={18}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Icon> }, 
+                { id: 'reporting', label: 'Reporting', icon: <Icon size={18}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></Icon> }
+            ];
+
+            return (
+                <div className="bg-white text-gray-700 h-14 flex items-center px-4 justify-between shrink-0 relative z-40 shadow-sm border-b-4 border-[#F47721]">
+                    <div className="flex items-center gap-8">
+                        <div className="flex items-center gap-2"><div className="font-bold text-xl text-[#F47721]">KnowBe4</div></div>
+                        <div className="flex items-center gap-1 h-10">
+                            {navItems.map(item => (
+                                <div 
+                                    key={item.id}
+                                    id={item.id === 'users' ? 'nav-groups' : item.id === 'training' ? 'nav-training' : `nav-${item.id}`} // Add IDs for hints
+                                    onClick={() => onNavigate && onNavigate(item.id)}
+                                    className={`
+                                        px-3 h-full flex items-center gap-2 text-sm font-medium cursor-pointer transition-all mt-1
+                                        ${activeTab === item.id 
+                                            ? 'text-[#F47721] bg-orange-50/50' 
+                                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}
+                                    `}
+                                >
+                                    {item.label}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="flex gap-4 items-center">
+                        <div className="bg-[#F47721] text-white text-xs px-2 py-0.5 rounded font-bold uppercase tracking-wider">Admin Console</div>
+                        <Bell size={18} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
+                        <div className="relative">
+                            <button id="user-menu-btn" onClick={() => setMenuOpen(!menuOpen)} className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs hover:ring-2 hover:ring-[#F47721] transition-all cursor-pointer text-gray-700 font-bold border border-gray-300">JD</button>
+                            {menuOpen && (
+                                <div className="absolute right-0 top-12 w-56 bg-white rounded shadow-xl border border-gray-200 text-gray-800 py-1 animate-in fade-in zoom-in-95 origin-top-right z-50">
+                                    <div className="px-4 py-3 border-b border-gray-100 mb-1 bg-gray-50"><div className="font-bold text-sm text-gray-900">John Doe</div><div className="text-xs text-gray-500">j.doe@company.com</div></div>
+                                    <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3 text-sm text-gray-700" onClick={() => { setMenuOpen(false); if (onNavigateSettings) onNavigateSettings(); }}><Settings size={16}/> Account Settings</div>
+                                    <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3 text-sm text-gray-700"><User size={16}/> Profile</div>
+                                    <div className="border-t border-gray-100 my-1"></div>
+                                    <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3 text-sm text-red-600"><LogOut size={16}/> Logout</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const KB4SettingsTabs = ({ active, onNavigate }) => {
+            const tabs = [{id:'info',label:'Account Info'},{id:'branding',label:'Branding'},{id:'integrations',label:'Account Integrations'},{id:'sub',label:'Subscription'}];
+            return (
+                <div className="border-b border-gray-200 px-6 pt-4 flex gap-6 bg-white">
+                    {tabs.map(t => (<div key={t.id} id={`tab-${t.id}`} onClick={() => onNavigate && onNavigate(t.id)} className={`pb-4 -mb-[1px] border-b-2 text-sm font-medium cursor-pointer transition-colors ${active === t.id ? 'border-[#F47721] text-[#F47721]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{t.label}</div>))}
+                </div>
+            );
+        };
+
+        const KB4Subnav = ({ active, onNavigate }) => {
+            const items = [{id:'users',label:'Users'},{id:'groups',label:'Groups'},{id:'roles',label:'Security Roles'},{id:'import',label:'Import Users'}];
+            return (
+                <div className="flex border-b border-gray-200 bg-white px-8 pt-2">
+                    {items.map(item => (<div key={item.id} id={`subnav-${item.id}`} onClick={() => onNavigate && onNavigate(item.id)} className={`py-4 px-2 mr-6 text-sm font-medium cursor-pointer border-b-2 transition-colors ${active === item.id ? 'border-[#F47721] text-[#F47721]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>{item.label}</div>))}
+                </div>
+            );
+        };
+        
+        // --- Scenes ---
+
+        const SceneIntro = ({ onNext }) => (
+             <div className="bg-gradient-to-br from-[#1C2636] to-[#0E4F4F] min-h-screen flex items-center justify-center text-white p-8">
+                <div className="max-w-3xl text-center">
+                    <div className="flex justify-center gap-8 mb-12 animate-in fade-in">
+                        <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center text-[#F47721] font-bold text-4xl shadow-xl">K</div>
+                        <div className="text-white/30 text-5xl flex items-center font-thin">+</div>
+                        <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center text-[#0E4F4F] shadow-xl">
+                            <Shield size={48} fill="currentColor" />
+                        </div>
+                    </div>
+                    
+                    <h1 className="text-5xl font-bold mb-6 animate-in slide-in-from-bottom">Mission Briefing</h1>
+                    
+                    <div className="bg-white/10 p-8 rounded-xl border border-white/10 backdrop-blur-md text-left space-y-6 mb-10 animate-in slide-in-from-bottom" style={{animationDelay: '0.2s'}}>
+                        <div>
+                            <h3 className="font-bold text-lg text-[#F47721] mb-2 uppercase tracking-wider">The Scenario</h3>
+                            <p className="text-lg text-gray-200 leading-relaxed">
+                                You are the Security Administrator for an organization using both <strong>Dashlane</strong> and <strong>KnowBe4</strong>. 
+                                Your goal is to automate the response to risky employee behavior.
+                            </p>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-lg text-green-400 mb-2 uppercase tracking-wider">The Mission</h3>
+                            <p className="text-lg text-gray-200 leading-relaxed">
+                                Use real-time Dashlane risk data (like phishing attempts or compromised passwords) to 
+                                <strong> automatically trigger specific remedial training</strong> in KnowBe4, closing the security loop instantly.
+                            </p>
+                        </div>
+                    </div>
+
+                    <Button id="start-demo-btn" variant="secondary" onClick={onNext} className="mx-auto px-10 py-4 text-lg font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all animate-in fade-in" style={{animationDelay: '0.5s'}}>
+                        Start Integration Demo <ArrowRight size={20}/>
+                    </Button>
+                </div>
+            </div>
+        );
+
+        const SceneKB4Dashboard = ({ onNext }) => {
+            return (
+                <div className="bg-gray-50 min-h-screen font-sans text-gray-800 flex flex-col">
+                    <KB4Header onNavigateSettings={onNext} activeTab="dashboard"/>
+                    
+                    <div className="flex-1 p-8 max-w-7xl mx-auto w-full">
+                        <div className="flex justify-between items-center mb-8">
+                            <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+                            <div className="flex gap-2">
+                                <button className="px-4 py-2 bg-white border border-gray-300 rounded text-sm font-medium text-gray-600">Last 30 Days</button>
+                                <button className="px-4 py-2 bg-[#F47721] text-white rounded text-sm font-medium shadow-sm">Download Report</button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-6 mb-8">
+                            <div className="bg-white p-6 rounded shadow-sm border-t-4 border-[#F47721]">
+                                <div className="text-gray-500 text-xs font-bold uppercase mb-2">Phishing-Prone Percentage</div>
+                                <div className="text-4xl font-bold text-gray-800">4.2%</div>
+                                <div className="text-xs text-green-600 mt-2 flex items-center gap-1"><span className="bg-green-100 p-0.5 rounded">↓ 1.2%</span> from last month</div>
+                            </div>
+                            <div className="bg-white p-6 rounded shadow-sm border-t-4 border-blue-500">
+                                <div className="text-gray-500 text-xs font-bold uppercase mb-2">Risk Score</div>
+                                <div className="text-4xl font-bold text-gray-800">58.4</div>
+                                <div className="text-xs text-red-600 mt-2 flex items-center gap-1"><span className="bg-red-100 p-0.5 rounded">↑ 2.1</span> from last month</div>
+                            </div>
+                            <div className="bg-white p-6 rounded shadow-sm border-t-4 border-green-500">
+                                <div className="text-gray-500 text-xs font-bold uppercase mb-2">Training Status</div>
+                                <div className="text-4xl font-bold text-gray-800">92%</div>
+                                <div className="text-xs text-gray-500 mt-2">Completion Rate</div>
+                            </div>
+                             <div className="bg-white p-6 rounded shadow-sm border-t-4 border-purple-500">
+                                <div className="text-gray-500 text-xs font-bold uppercase mb-2">Active Campaigns</div>
+                                <div className="text-4xl font-bold text-gray-800">3</div>
+                                <div className="text-xs text-gray-500 mt-2"> ongoing</div>
+                            </div>
+                        </div>
+                        
+                        <div className="bg-white rounded shadow-sm border border-gray-200 h-96 flex flex-col p-6">
+                             <h3 className="font-bold text-gray-700 mb-4">Risk Score History</h3>
+                             <div className="flex-1 flex items-center justify-center p-4">
+                                <RiskScoreGraph />
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const SceneKB4SettingsLanding = ({ onNext }) => {
+            return (
+                <div className="bg-gray-50 min-h-screen font-sans text-gray-800 flex flex-col">
+                    <KB4Header activeTab="settings" onNavigate={(tab) => {}}/> 
+                    <div className="flex-1 p-8 max-w-5xl mx-auto w-full">
+                        <h1 className="text-2xl font-bold mb-6">Account Settings</h1>
+                        <div className="bg-white rounded shadow-sm border border-gray-200 min-h-[500px]">
+                            <KB4SettingsTabs active="info" onNavigate={(tab) => { if(tab === 'integrations') onNext(); }} />
+                            <div className="p-8"><div className="max-w-2xl space-y-6 opacity-50 pointer-events-none"><div><label className="block text-sm font-bold text-gray-700 mb-1">Organization Name</label><input type="text" value="Acme Corp" readOnly className="w-full border border-gray-300 rounded px-3 py-2 bg-gray-50"/></div><div><label className="block text-sm font-bold text-gray-700 mb-1">Primary Domain</label><input type="text" value="acmecorp.com" readOnly className="w-full border border-gray-300 rounded px-3 py-2 bg-gray-50"/></div><div><label className="block text-sm font-bold text-gray-700 mb-1">Admin Email</label><input type="text" value="admin@acmecorp.com" readOnly className="w-full border border-gray-300 rounded px-3 py-2 bg-gray-50"/></div></div></div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const SceneKB4Keys = ({ onNext, generatedKey, setGeneratedKey }) => {
+            const [showModal, setShowModal] = useState(false);
+            return (
+                <div className="bg-gray-50 min-h-screen font-sans text-gray-800 flex flex-col">
+                    <KB4Header activeTab="settings" onNavigate={(tab) => {}}/>
+                    <div className="flex-1 p-8 max-w-5xl mx-auto w-full">
+                        <h1 className="text-2xl font-bold mb-6">Account Settings</h1>
+                        <div className="bg-white rounded shadow-sm border border-gray-200 min-h-[500px]">
+                            <KB4SettingsTabs active="integrations" />
+                            <div className="p-6">
+                                <div className="flex gap-6 mb-6 border-b border-gray-100 pb-2"><div className="text-sm font-bold text-gray-500">SAML</div><div className="text-sm font-bold text-[#F47721] border-b-2 border-[#F47721] pb-2 -mb-2.5">API</div><div className="text-sm font-bold text-gray-500">Reporting</div></div>
+                                <div className="mb-6"><h3 className="font-bold text-lg mb-2">User Event API</h3><p className="text-sm text-gray-600 max-w-2xl mb-6">The User Event API allows external systems (like Dashlane) to push risk events into the KnowBe4 timeline to trigger Smart Groups.</p>
+                                    {generatedKey ? (
+                                        <div className="bg-green-50 border border-green-200 p-4 rounded-lg mb-6 flex items-center justify-between animate-in fade-in"><div><div className="text-sm font-bold text-green-800 mb-1">Active Key: Dashlane Integration</div><div className="font-mono text-xs text-gray-600 bg-white px-2 py-1 rounded border border-gray-200">{generatedKey}</div></div><button onClick={onNext} className="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700 flex items-center gap-2 animate-pulse">Copy & Continue <ArrowRight size={16}/></button></div>
+                                    ) : (
+                                        <div className="bg-gray-50 border border-gray-200 p-8 rounded-lg flex flex-col items-center justify-center text-center"><div className="bg-white p-3 rounded-full shadow-sm mb-3"><Settings className="text-gray-400" /></div><h4 className="font-medium text-gray-900 mb-1">No API Keys Found</h4><Button id="create-key-btn" variant="kb4" onClick={() => setShowModal(true)}><Plus size={16} /> Create New Key</Button></div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {showModal && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-lg w-[500px] p-6 shadow-xl">
+                                <h3 className="text-lg font-bold mb-4">Create New API Key</h3>
+                                <div className="space-y-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">Key Name</label><input type="text" defaultValue="Dashlane Integration" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" /></div><div className="flex justify-end gap-2 mt-6"><Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button><Button variant="kb4" onClick={() => { setGeneratedKey("us_ev_7s8d6f87g6df87g6d8f7g6d8f7g6"); setShowModal(false); }}>Create Key</Button></div></div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const SceneDashlaneSetup = ({ onNext, generatedKey }) => {
+            const [showConfig, setShowConfig] = useState(false);
+            const [showSuccess, setShowSuccess] = useState(false);
+            const [apiKeyInput, setApiKeyInput] = useState("");
+            const [connected, setConnected] = useState(false);
+            const handleConnect = () => { if (apiKeyInput) { setTimeout(() => { setShowConfig(false); setShowSuccess(true); setConnected(true); }, 800); } };
+            
+            const DashlaneSidebar = ({ activeTab }) => {
+                const groups = [{ title: "My Organization", items: [{ label: "Dashboard", id: 'dashboard' }, { label: "Users", id: 'users' }, { label: "Groups", id: 'groups' }, { label: "Integrations", id: 'integrations' }, { label: "Policies", id: 'policies' }, { label: "Settings", id: 'settings' }] }, { title: "Reports", items: [{ label: "Activity Log", id: 'activity' }] }];
+                return (
+                    <div className="w-64 bg-[#1C1C1C] h-full flex flex-col shrink-0 text-white">
+                        <div className="p-6"><div className="flex items-center gap-2 mb-6"><Shield size={28} fill="currentColor" /><span className="font-bold text-xl tracking-tight">dashlane</span></div></div>
+                        <div className="flex-1 overflow-y-auto px-4">{groups.map((group, idx) => (<div key={idx} className="mb-6"><h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">{group.title}</h3><div className="space-y-0.5">{group.items.map(item => (<div key={item.id} className={`px-3 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors ${activeTab === item.id ? 'bg-[#016372] text-white' : 'text-gray-400 hover:bg-[#2C2C2C]'}`}>{item.label}</div>))}</div></div>))}</div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="bg-[#F5F7F7] min-h-screen font-sans text-gray-800 flex h-screen overflow-hidden">
+                    <DashlaneSidebar activeTab="integrations" />
+                    <div className="flex-1 flex flex-col overflow-y-auto">
+                         <div className="bg-white h-16 border-b border-gray-200 flex items-center px-8 justify-between shrink-0">
+                            <h1 className="text-2xl font-bold text-[#016372]">Events Reporting</h1>
+                             <div className="flex items-center gap-6"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} /><input type="text" placeholder="Search settings..." className="pl-10 pr-4 py-2 border border-gray-200 rounded-full text-sm w-64 focus:outline-none focus:border-[#016372]"/></div><div className="flex items-center gap-3"><div className="text-right"><div className="text-sm font-bold text-gray-800">John Doe</div><div className="text-xs text-gray-500">Admin</div></div><div className="w-8 h-8 bg-[#016372] rounded-full flex items-center justify-center text-white text-xs font-bold">JD</div></div></div>
+                        </div>
+                        <div className="max-w-6xl w-full mx-auto p-8">
+                             <div className="mb-8"><p className="text-gray-500">Connect Dashlane logs to your SIEM or SOAR tools to automate security workflows.</p></div>
+                            <div className="grid grid-cols-3 gap-6">
+                                <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm opacity-60"><div className="h-10 w-10 bg-gray-100 rounded mb-4 flex items-center justify-center font-bold text-gray-500">S</div><h3 className="font-bold text-lg mb-1">Splunk</h3><Button variant="secondary" className="w-full">Set up integration</Button></div>
+                                <div className={`bg-white p-6 rounded-lg border-2 shadow-sm ${connected ? 'border-[#016372] ring-4 ring-[#016372]/10' : 'border-blue-100 ring-4 ring-blue-50/50'}`}><div className="flex justify-between items-start mb-4"><div className="h-10 w-10 bg-[#F47721] rounded flex items-center justify-center text-white font-bold text-xl">K</div>{connected && <div className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold flex gap-1 items-center"><Check size={12}/> ACTIVE</div>}</div><h3 className="font-bold text-lg mb-1">KnowBe4</h3><p className="text-sm text-gray-500 mb-4">Sync risk events (phishing, reused passwords) to trigger remedial training.</p>{connected ? <Button variant="secondary" className="w-full text-green-700 border-green-200 bg-green-50 pointer-events-none">Connected</Button> : <Button id="kb4-card-btn" variant="dashlane" className="w-full" onClick={() => setShowConfig(true)}>Set up integration</Button>}</div>
+                                <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm opacity-60"><div className="flex justify-between items-start mb-4"><div className="h-10 w-10 bg-blue-50 rounded flex items-center justify-center font-bold text-blue-500">A</div><span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded font-bold">Coming Soon</span></div><h3 className="font-bold text-lg mb-1">Azure Sentinel</h3><Button variant="secondary" className="w-full" disabled>Set up integration</Button></div>
+                            </div>
+                        </div>
+                    </div>
+                    {showConfig && (
+                        <div className="fixed inset-0 bg-black/20 flex justify-end z-50 backdrop-blur-sm">
+                            <div className="bg-white w-[500px] h-full shadow-2xl p-8 flex flex-col animate-in slide-in-from-right duration-300">
+                                <div className="flex justify-between items-center mb-8"><h2 className="text-xl font-bold text-[#016372]">Connect KnowBe4</h2><button onClick={() => setShowConfig(false)} className="text-gray-400">×</button></div>
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-1">Region</label>
+                                        <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-gray-50 focus:border-[#016372] focus:ring-1 focus:ring-[#016372]">
+                                            <option>United States (training.knowbe4.com)</option>
+                                            <option>European Union (eu.knowbe4.com)</option>
+                                            <option>Canada (ca.knowbe4.com)</option>
+                                            <option>Germany (de.knowbe4.com)</option>
+                                            <option>United Kingdom (uk.knowbe4.com)</option>
+                                        </select>
+                                    </div>
+                                    <div><label className="block text-sm font-bold text-gray-700 mb-1">User Event API Key</label><div className="relative"><input type="text" placeholder="us_ev_..." value={apiKeyInput} onChange={(e) => setApiKeyInput(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono focus:border-[#016372] focus:ring-1 focus:ring-[#016372]" /><button onClick={() => setApiKeyInput(generatedKey)} className="absolute right-2 top-1.5 text-xs text-[#016372] font-bold hover:underline">Paste Key</button></div></div>
+                                </div>
+                                <div className="mt-auto pt-6 border-t border-gray-100 flex justify-end gap-3"><Button variant="secondary" onClick={() => setShowConfig(false)}>Cancel</Button><Button variant="dashlane" onClick={handleConnect}>Connect & Test</Button></div>
+                            </div>
+                        </div>
+                    )}
+                    {showSuccess && (
+                        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] backdrop-blur-sm animate-in fade-in">
+                            <div className="bg-white w-[400px] p-8 rounded-xl shadow-2xl flex flex-col items-center text-center animate-in slide-in-from-bottom">
+                                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-4">
+                                    <Check size={32} />
+                                </div>
+                                <h2 className="text-xl font-bold text-gray-900 mb-2">KnowBe4 Integration Active</h2>
+                                <p className="text-gray-500 text-sm mb-6">Dashlane is now connected and ready to sync risk events to your KnowBe4 console.</p>
+                                <Button variant="dashlane" className="w-full py-3" onClick={() => { setShowSuccess(false); onNext(); }}>
+                                    Go to Simulation Console <ArrowRight size={16} />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const SceneDashlaneSimulate = ({ onNext, setSimulationType }) => {
+            const [simulating, setSimulating] = useState(null);
+            const [eventsSent, setEventsSent] = useState([]);
+            const handleSimulate = (type) => { setSimulating(type); setSimulationType(type); setTimeout(() => { setSimulating(null); setEventsSent(prev => [...prev, type]); }, 1500); };
+            const getYesterday = () => { const date = new Date(); date.setDate(date.getDate() - 1); return date.toISOString().replace('T', ' ').split('.')[0]; };
+            const getEventLog = (type) => { const dateStr = getYesterday(); return type === 'phishing' ? `j.doe@company.com,Phishing alerts,Pasted j.doe@company.com login for github.com on different website githubz.com,${dateStr}` : `j.doe@company.com,Risk detection,Typed compromised password for j.doe@company.com login for www.linkedin.com on www.linkedin.com,${dateStr}`; };
+
+            const DashlaneSidebar = ({ activeTab }) => {
+                const groups = [{ title: "My Organization", items: [{ label: "Dashboard", id: 'dashboard' }, { label: "Users", id: 'users' }, { label: "Groups", id: 'groups' }, { label: "Integrations", id: 'integrations' }, { label: "Policies", id: 'policies' }, { label: "Settings", id: 'settings' }] }, { title: "Reports", items: [{ label: "Activity Log", id: 'activity' }] }];
+                return (
+                    <div className="w-64 bg-[#1C1C1C] h-full flex flex-col shrink-0 text-white">
+                        <div className="p-6"><div className="flex items-center gap-2 mb-6"><Shield size={28} fill="currentColor" /><span className="font-bold text-xl tracking-tight">dashlane</span></div></div>
+                        <div className="flex-1 overflow-y-auto px-4">{groups.map((group, idx) => (<div key={idx} className="mb-6"><h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">{group.title}</h3><div className="space-y-0.5">{group.items.map(item => (<div key={item.id} className={`px-3 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors ${activeTab === item.id ? 'bg-[#016372] text-white' : 'text-gray-400 hover:bg-[#2C2C2C]'}`}>{item.label}</div>))}</div></div>))}</div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="bg-[#F5F7F7] min-h-screen font-sans text-gray-800 relative flex h-screen overflow-hidden">
+                    <DashlaneSidebar activeTab="integrations" />
+                    <div className="flex-1 flex flex-col overflow-y-auto">
+                         <div className="bg-white h-16 border-b border-gray-200 flex items-center px-8 justify-between shrink-0">
+                            <h1 className="text-xl font-bold text-[#016372]">Simulation Console</h1>
+                             <div className="flex items-center gap-6"><div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold uppercase tracking-wider flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>Live</div><div className="flex items-center gap-3"><div className="text-right"><div className="text-sm font-bold text-gray-800">John Doe</div><div className="text-xs text-gray-500">Admin</div></div><div className="w-8 h-8 bg-[#016372] rounded-full flex items-center justify-center text-white text-xs font-bold">JD</div></div></div>
+                        </div>
+                        <div className="max-w-4xl mx-auto mt-8 w-full p-8">
+                            <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                                <div className="p-8" id="sim-console-area">
+                                    <h2 className="text-lg font-bold text-gray-800 mb-4">Trigger Risk Event</h2>
+                                    <p className="text-gray-500 mb-6 text-sm">Select a scenario to simulate a real-time threat detection event from Dashlane to KnowBe4.</p>
+                                    <div className="grid grid-cols-2 gap-6 mb-8">
+                                        <div className="border rounded-lg p-5 hover:border-[#016372] transition-colors relative group bg-gray-50">
+                                            <div className="absolute top-4 right-4 text-[#016372] bg-[#E5F1F1] p-2 rounded-full"><AlertTriangle size={20} /></div>
+                                            <h3 className="font-bold text-gray-900 mb-2">Phishing Attempt</h3>
+                                            <p className="text-sm text-gray-500 mb-4">Simulate user <strong>j.doe@company.com</strong> entering credentials into a known phishing site.</p>
+                                            <button id="sim-phishing-btn" onClick={() => handleSimulate('phishing')} disabled={simulating} className="w-full py-2 bg-white border border-gray-300 text-gray-700 font-bold rounded hover:border-[#016372] hover:text-[#016372] transition-colors flex justify-center items-center gap-2">{simulating === 'phishing' ? 'Sending...' : 'Trigger Phishing Event'}</button>
+                                        </div>
+                                        <div className="border rounded-lg p-5 hover:border-[#016372] transition-colors relative bg-gray-50">
+                                            <div className="absolute top-4 right-4 text-red-600 bg-red-50 p-2 rounded-full"><Shield size={20} /></div>
+                                            <h3 className="font-bold text-gray-900 mb-2">Dark Web Match</h3>
+                                            <p className="text-sm text-gray-500 mb-4">Simulate user <strong>j.doe@company.com</strong> using a password found in a dark web breach.</p>
+                                            <button onClick={() => handleSimulate('compromised')} disabled={simulating} className="w-full py-2 bg-white border border-gray-300 text-gray-700 font-bold rounded hover:border-red-500 hover:text-red-600 transition-colors">{simulating === 'compromised' ? 'Sending...' : 'Trigger Compromised Event'}</button>
+                                        </div>
+                                    </div>
+                                    <div className="bg-gray-900 rounded-lg p-4 font-mono text-xs text-green-400 h-32 overflow-y-auto shadow-inner">
+                                        <div className="text-gray-500 border-b border-gray-700 pb-2 mb-2 uppercase tracking-wider text-[10px]">System Log Output</div>
+                                        {eventsSent.length === 0 && <div className="opacity-50 italic">Waiting for event trigger...</div>}
+                                        {eventsSent.map((ev, i) => (<div key={i} className="mt-2 animate-in slide-in-from-left"><span className="text-gray-500">[{new Date().toLocaleTimeString()}]</span> <span className="text-yellow-400">POST</span> /v1/events <span className="text-green-400">200 OK</span><br/><span className="text-blue-300 block mt-1 pl-4 break-all opacity-90">{getEventLog(ev)}</span></div>))}
+                                    </div>
+                                </div>
+                                {eventsSent.length > 0 && <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-between items-center animate-in fade-in"><span className="text-sm font-medium text-gray-600 flex items-center gap-2"><Check size={16} className="text-green-500"/> Event transmitted successfully.</span><Button variant="kb4" onClick={onNext}>Verify in KnowBe4 <ArrowRight size={16}/></Button></div>}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const SceneKB4Timeline = ({ onNext, simulationType }) => {
+            const isPhishing = simulationType === 'phishing';
+            const eventDescription = isPhishing ? "User attempted to enter credentials on an AI-suspected phishing site." : "User logged into www.linkedin.com with compromised credentials.";
+
+            return (
+                <div className="bg-gray-50 min-h-screen font-sans text-gray-800 flex flex-col">
+                    <KB4Header activeTab="users" onNavigate={(tab) => { if(tab === 'groups') onNext(); }} />
+                    <div className="flex-1 flex flex-col bg-white">
+                        <KB4Subnav active="users" onNavigate={(tab) => { if (tab === 'groups') onNext(); }} />
+                        <div className="flex-1 p-8 max-w-7xl mx-auto w-full">
+                            <div className="flex items-center gap-2 text-sm text-gray-500 mb-4"><span>Users</span> <span className="text-gray-300">/</span> <span>John Doe</span> <span className="text-gray-300">/</span> <span className="text-gray-900 font-bold">Timeline</span></div>
+                            <div className="bg-white rounded shadow-sm border border-gray-200 p-6">
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="flex gap-4"><div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-2xl text-gray-500 font-bold">JD</div><div><h1 className="text-2xl font-bold">John Doe</h1><p className="text-gray-500">j.doe@company.com • Finance Dept</p><div className="flex gap-2 mt-2"><span className="bg-red-100 text-red-800 text-xs px-2 py-0.5 rounded font-bold">Risk Score: 65</span></div></div></div>
+                                </div>
+                                <h3 className="font-bold text-gray-700 border-b border-gray-200 pb-2 mb-4">Activity Timeline</h3>
+                                <div className="relative border-l-2 border-gray-200 ml-3 space-y-8 pl-8 py-2">
+                                    <div className="relative animate-in slide-in-from-left duration-700">
+                                        <div className="absolute -left-[41px] bg-red-500 p-2 rounded-full border-4 border-white shadow-sm"><AlertTriangle size={16} className="text-white" /></div>
+                                        <div className="bg-red-50 border border-red-100 rounded p-4">
+                                            <div className="flex justify-between items-start mb-1"><h4 className="font-bold text-red-800">Dashlane Risk Detected: {isPhishing ? "Phishing Attempt" : "Compromised Credential"}</h4><span className="text-xs text-gray-500">Just now</span></div>
+                                            <p className="text-sm text-gray-700 mb-2">{eventDescription}</p>
+                                            <div className="flex gap-2"><span className="text-xs bg-white border border-gray-200 px-2 py-1 rounded text-gray-500 font-mono">Source: Dashlane API</span><span className="text-xs bg-white border border-gray-200 px-2 py-1 rounded text-gray-500 font-mono">ID: ev_8d9g8d</span></div>
+                                        </div>
+                                    </div>
+                                    <div className="relative opacity-60">
+                                        <div className="absolute -left-[41px] bg-gray-400 p-2 rounded-full border-4 border-white shadow-sm"><Check size={16} className="text-white" /></div>
+                                        <div><h4 className="font-bold text-gray-700">Completed Training: 2025 Cybersecurity Basics</h4><span className="text-xs text-gray-500">12/15/2025</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const SceneKB4SmartGroup = ({ onNext, simulationType, setDynamicHintTarget }) => {
+            const isPhishing = simulationType === 'phishing';
+            const defaultName = isPhishing ? "Dashlane: Phishing Risky Users" : "Dashlane: Compromised Credentials Group";
+            const targetEvent = isPhishing ? 'phishing' : 'reused';
+            const [groupName, setGroupName] = useState(defaultName);
+            const [criteria, setCriteria] = useState({ rule: '', eventType: '', eventName: '' });
+            const [isSaved, setIsSaved] = useState(false);
+            useEffect(() => { setGroupName(defaultName); }, [defaultName]);
+            const isConfigured = criteria.rule === 'user_event' && criteria.eventType === 'dashlane' && criteria.eventName === targetEvent;
+            useEffect(() => {
+                if (!setDynamicHintTarget) return;
+                let target = "save-group-btn";
+                if (criteria.rule !== 'user_event') target = "rule-dropdown";
+                else if (criteria.eventType !== 'dashlane') target = "event-type-dropdown";
+                else if (criteria.eventName !== targetEvent) target = "event-name-dropdown";
+                setDynamicHintTarget(target);
+            }, [criteria, targetEvent, setDynamicHintTarget]);
+            const handleSave = () => { setIsSaved(true); onNext(true, groupName); };
+
+            return (
+                <div className="bg-gray-50 min-h-screen font-sans text-gray-800 flex flex-col">
+                    <KB4Header activeTab="users" onNavigate={(tab) => { if (tab === 'training' && isSaved) onNext(false); }} />
+                    <div className="flex-1 flex flex-col bg-white">
+                        <KB4Subnav active="groups" />
+                        <div className="flex-1 p-8 max-w-7xl mx-auto w-full">
+                            <div className="flex items-center gap-2 text-sm text-gray-500 mb-4"><span>Users</span><span className="text-gray-300">/</span><span className="text-gray-900 font-bold">Groups</span></div>
+                            <h1 className="text-2xl font-bold mb-6">Create New Smart Group</h1>
+                            <div className="bg-white p-6 rounded shadow border border-gray-200 space-y-6 max-w-4xl">
+                                <div><label className="block text-sm font-bold text-gray-700 mb-1">Group Name</label><input type="text" value={groupName} onChange={(e) => setGroupName(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" /></div>
+                                <div className="bg-blue-50 p-4 rounded border border-blue-100">
+                                    <h3 className="font-bold text-blue-800 text-sm mb-3 uppercase tracking-wide">Smart Group Criteria</h3>
+                                    <div className="flex gap-2 items-center flex-wrap">
+                                        <span className="text-sm font-medium">Include users if:</span>
+                                        <select id="rule-dropdown" className="border border-gray-300 rounded px-3 py-2 text-sm bg-white" onChange={(e) => setCriteria({...criteria, rule: e.target.value})}><option value="">Select Rule...</option><option value="training">Training Status</option><option value="user_event">User Event</option></select>
+                                        {criteria.rule === 'user_event' && (<select id="event-type-dropdown" className="border border-gray-300 rounded px-3 py-2 text-sm bg-white animate-in fade-in" onChange={(e) => setCriteria({...criteria, eventType: e.target.value})}><option value="">Select Vendor...</option><option value="crowdstrike">CrowdStrike</option><option value="dashlane">Dashlane</option></select>)}
+                                        {criteria.eventType === 'dashlane' && (<div className="flex gap-2 items-center animate-in fade-in"><span className="text-sm">Event is</span><select id="event-name-dropdown" className="border border-gray-300 rounded px-3 py-2 text-sm bg-white" onChange={(e) => setCriteria({...criteria, eventName: e.target.value})}><option value="">Select Event...</option><option value="phishing">Phishing Attempt</option><option value="reused">Compromised Credential Usage</option></select></div>)}
+                                    </div>
+                                    {isConfigured && (<div className="mt-4 p-3 bg-white border border-gray-200 rounded text-sm text-gray-600 flex items-center gap-2 animate-in slide-in-from-top-2"><Clock size={14} /><span>This group will dynamically update <strong>instantly</strong> when Dashlane sends a "{criteria.eventName === 'phishing' ? 'Phishing Attempt' : 'Compromised Credential Usage'}" event.</span></div>)}
+                                </div>
+                                <div className="flex justify-end pt-4 items-center gap-4">
+                                    {isSaved && <span className="text-green-600 font-medium flex gap-2 items-center animate-in fade-in"><Check size={16}/> Saved</span>}
+                                    <Button id="save-group-btn" variant={isSaved ? 'success' : 'kb4'} onClick={isSaved ? undefined : handleSave} disabled={!isConfigured || isSaved} className={`${!isConfigured ? 'opacity-50 cursor-not-allowed' : ''} ${isSaved ? '' : 'bg-[#F47721] text-white hover:bg-[#D96616]'}`}>{isSaved ? 'Group Saved' : 'Save Smart Group'}</Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const SceneKB4Campaign = ({ onNext, targetGroupName, simulationType, setDynamicHintTarget }) => {
+            const isPhishing = simulationType === 'phishing';
+            const defaultCampaignName = isPhishing ? "Auto-Remediation: Phishing Training" : "Auto-Remediation: Compromised Credentials Training";
+            
+            const [selectedGroup, setSelectedGroup] = useState("");
+            const [selectedContent, setSelectedContent] = useState("");
+            const [isCreating, setIsCreating] = useState(false);
+            const [showSuccessModal, setShowSuccessModal] = useState(false);
+            const [showEmailToast, setShowEmailToast] = useState(false);
+
+            const isValid = () => {
+                if (!selectedContent || selectedContent === "") return false;
+                if (!selectedGroup || selectedGroup === "") return false;
+                const contentIsPhishing = selectedContent.includes("Phishing") || selectedContent.includes("Spot the Phish");
+                const contentIsCompromised = selectedContent.includes("Strong Passwords");
+                const groupIsPhishing = selectedGroup.includes("phishing");
+                const groupIsCompromised = selectedGroup.includes("compromised");
+                if (isPhishing) return contentIsPhishing && groupIsPhishing;
+                else return contentIsCompromised && groupIsCompromised;
+            };
+            
+            useEffect(() => {
+                if (!setDynamicHintTarget) return;
+                let target = "create-campaign-btn";
+                // Simplified hint logic reused here
+                if (!selectedContent || selectedContent === "") target = "content-dropdown";
+                else if (!selectedGroup || selectedGroup === "") target = "group-dropdown";
+                setDynamicHintTarget(target);
+            }, [selectedContent, selectedGroup, isPhishing, setDynamicHintTarget]);
+
+            const handleCreate = () => {
+                setIsCreating(true);
+                // 1. Show Success Modal immediately
+                setShowSuccessModal(true);
+                
+                // 2. Hide Modal after 1.5s and Show Email Toast
+                setTimeout(() => {
+                    setShowSuccessModal(false);
+                    setShowEmailToast(true);
+                }, 1500);
+
+                // 3. Wait another 3s then advance
+                setTimeout(() => {
+                    onNext();
+                }, 4500); 
+            };
+
+            return (
+                <div className="bg-gray-50 min-h-screen font-sans text-gray-800 flex flex-col relative">
+                    <KB4Header activeTab="training"/>
+                    <div className="flex-1 p-8 max-w-7xl mx-auto w-full">
+                        <h1 className="text-2xl font-bold mb-6">Create New Training Campaign</h1>
+                        <div className="bg-white p-6 rounded shadow border border-gray-200 space-y-6 max-w-4xl">
+                            <div><label className="block text-sm font-bold text-gray-700 mb-1">Campaign Name</label><input type="text" defaultValue={defaultCampaignName} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" /></div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Content</label>
+                                <select id="content-dropdown" className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white" value={selectedContent} onChange={(e) => setSelectedContent(e.target.value)}>
+                                    <option value="">Select Content...</option>
+                                    <option>2026 Phishing Awareness Module</option>
+                                    <option>Creating Strong Passwords - Security Awareness Training</option>
+                                    <option>Spot the Phish Game: Reloaded</option>
+                                </select>
+                            </div>
+                            <div className="border-t border-gray-100 pt-4">
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Enroll Groups</label>
+                                <select id="group-dropdown" className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white" onChange={(e) => setSelectedGroup(e.target.value)}>
+                                    <option value="">Select a group...</option>
+                                    <option value="all">All Users</option>
+                                    <option value={`dashlane-${simulationType}`}>{targetGroupName} (Smart Group)</option>
+                                </select>
+                            </div>
+                            <div className="flex items-center gap-2"><input type="checkbox" checked readOnly className="text-orange-500 rounded focus:ring-orange-500" /><span className="text-sm font-medium">Enable automatic enrollment for new users</span></div>
+                            <div className="flex justify-end pt-4"><Button id="create-campaign-btn" variant={isValid() ? 'kb4' : 'secondary'} onClick={isValid() ? handleCreate : undefined} disabled={!isValid() || isCreating} className={isValid() ? 'animate-pulse' : 'opacity-50'}>{isCreating ? <span className="flex items-center gap-2"><Loader size={16}/> Creating...</span> : "Create Campaign"}</Button></div>
+                        </div>
+                    </div>
+                    {/* SUCCESS MODAL: Centered */}
+                    {showSuccessModal && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] backdrop-blur-sm animate-in fade-in">
+                            <div className="bg-white rounded-lg shadow-2xl p-8 w-96 text-center animate-in slide-in-from-bottom">
+                                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Check size={32} className="text-green-600" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">Campaign Created!</h3>
+                                <p className="text-gray-500 text-sm">"<strong>{defaultCampaignName}</strong>" is now active.</p>
+                            </div>
+                        </div>
+                    )}
+                    {/* TOAST 2: Email Notification - Bottom Right */}
+                    {showEmailToast && (
+                        <div className="fixed bottom-8 right-8 bg-white border-l-4 border-blue-500 text-gray-800 px-6 py-4 rounded shadow-2xl flex items-start gap-3 animate-in slide-in-from-right z-[80] max-w-sm">
+                            <div className="mt-1 text-blue-500"><Mail size={20} /></div>
+                            <div>
+                                <h4 className="font-bold text-sm">New Email: Training Assigned</h4>
+                                <p className="text-xs text-gray-500 mt-1">KnowBe4: You have been enrolled in "{selectedContent}". Please complete by Friday.</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // --- Scene: Complete ---
+        const SceneComplete = ({ onReset }) => {
+            return (
+                <div className="bg-gradient-to-br from-[#1C2636] to-[#0E4F4F] min-h-screen flex items-center justify-center text-white p-8">
+                    <div className="max-w-2xl text-center">
+                        <div className="flex justify-center gap-6 mb-8"><div className="w-20 h-20 bg-white rounded-xl flex items-center justify-center text-[#F47721] font-bold text-3xl shadow-lg">K</div><div className="text-white/50 text-4xl flex items-center">+</div><div className="w-20 h-20 bg-white rounded-xl flex items-center justify-center text-[#0E4F4F] shadow-lg"><Shield size={40} fill="currentColor" /></div></div>
+                        <h1 className="text-4xl font-bold mb-4">Integration Complete</h1>
+                        <p className="text-xl text-gray-300 mb-8 leading-relaxed">You have successfully built an automated remediation loop.<br/>When Dashlane detects risk, KnowBe4 automatically trains the user.</p>
+                        <Button variant="secondary" onClick={onReset} className="mx-auto px-8 py-3">Restart Demo</Button>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Main App Orchestrator ---
+
+        const App = () => {
+            const [currentScene, setCurrentScene] = useState(SCENES.INTRO);
+            const [history, setHistory] = useState([]);
+            const [generatedKey, setGeneratedKey] = useState("");
+            const [simulationType, setSimulationType] = useState("phishing"); 
+            const [createdGroupName, setCreatedGroupName] = useState("");
+            const [dynamicHintTarget, setDynamicHintTarget] = useState(null);
+
+            const nextScene = (partialStep = false, data = null) => {
+                setDynamicHintTarget(null);
+                if (partialStep) {
+                    // Special case: Move to transition state without changing scene component entirely
+                    // But for our router logic, we just change the state key
+                    setCurrentScene(SCENES.KB4_TRAINING_TRANSITION);
+                    if (data) setCreatedGroupName(data);
+                    return;
+                }
+
+                const order = [
+                    SCENES.KB4_DASHBOARD,
+                    SCENES.KB4_SETTINGS_LANDING,
+                    SCENES.KB4_API_KEYS,
+                    SCENES.DASHLANE_SETUP,
+                    SCENES.DASHLANE_SIMULATE,
+                    SCENES.KB4_TIMELINE,
+                    SCENES.KB4_SMART_GROUP,
+                    SCENES.KB4_TRAINING_TRANSITION, // Intermediate state logic handled by SmartGroup component
+                    SCENES.KB4_CAMPAIGN,
+                    SCENES.COMPLETE
+                ];
+                
+                // Find current index
+                const currentIndex = order.indexOf(currentScene);
+                
+                // If we are at transition, next is campaign
+                if (currentScene === SCENES.KB4_TRAINING_TRANSITION) {
+                    setCurrentScene(SCENES.KB4_CAMPAIGN);
+                    return;
+                }
+
+                if (currentIndex < order.length - 1) {
+                    setCurrentScene(order[currentIndex + 1]);
+                }
+            };
+
+            const handleBack = () => {
+                if (history.length === 0) return;
+                const prevScene = history[history.length - 1];
+                setHistory(history.slice(0, -1));
+                setCurrentScene(prevScene);
+                setDynamicHintTarget(null);
+            };
+
+            const handleNext = (partialStep, data) => {
+                setHistory([...history, currentScene]);
+                nextScene(partialStep, data);
+            };
+
+            const handleHint = () => {
+                const targetId = dynamicHintTarget || DEMO_STEPS[currentScene]?.target;
+                if (!targetId) return;
+                const el = document.getElementById(targetId);
+                if (el) {
+                    el.classList.add('hint-active');
+                    setTimeout(() => el.classList.remove('hint-active'), 2000);
+                }
+            };
+
+            const currentStepInfo = DEMO_STEPS[currentScene];
+
+            return (
+                <div>
+                {currentScene === SCENES.INTRO && (
+                    <SceneIntro onNext={() => handleNext()} />
+                )}
+                {currentScene === SCENES.KB4_DASHBOARD && (
+                    <SceneKB4Dashboard onNext={() => handleNext()} />
+                )}
+                {currentScene === SCENES.KB4_SETTINGS_LANDING && (
+                    <SceneKB4SettingsLanding onNext={() => handleNext()} />
+                )}
+                {currentScene === SCENES.KB4_API_KEYS && (
+                    <SceneKB4Keys onNext={() => handleNext()} generatedKey={generatedKey} setGeneratedKey={setGeneratedKey} />
+                )}
+                {currentScene === SCENES.DASHLANE_SETUP && (
+                    <SceneDashlaneSetup onNext={() => handleNext()} generatedKey={generatedKey} />
+                )}
+                {currentScene === SCENES.DASHLANE_SIMULATE && (
+                    <SceneDashlaneSimulate onNext={() => handleNext()} setSimulationType={setSimulationType} />
+                )}
+                {currentScene === SCENES.KB4_TIMELINE && (
+                    <SceneKB4Timeline onNext={() => handleNext()} simulationType={simulationType} />
+                )}
+                {(currentScene === SCENES.KB4_SMART_GROUP || currentScene === SCENES.KB4_TRAINING_TRANSITION) && (
+                    <SceneKB4SmartGroup onNext={handleNext} simulationType={simulationType} setDynamicHintTarget={setDynamicHintTarget} />
+                )}
+                {currentScene === SCENES.KB4_CAMPAIGN && (
+                    <SceneKB4Campaign 
+                        onNext={() => handleNext()} 
+                        targetGroupName={createdGroupName} 
+                        simulationType={simulationType} 
+                        setDynamicHintTarget={setDynamicHintTarget} 
+                    />
+                )}
+                {currentScene === SCENES.COMPLETE && (
+                    <SceneComplete onReset={() => setCurrentScene(SCENES.INTRO)} />
+                )}
+
+                {/* Guide Overlay - persistent across scenes */}
+                <GuideOverlay currentStep={currentStepInfo} onNext={() => handleNext()} onHint={handleHint} onBack={handleBack} canGoBack={history.length > 0} />
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
