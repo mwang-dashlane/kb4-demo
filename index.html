@@ -108,12 +108,12 @@
 
         const DEMO_STEPS = {
             // INTRO step removed to prevent overlay from showing
-            [SCENES.KB4_DASHBOARD]: { instruction: "Start by navigating to the Account Settings. Click your user profile in the top right.", target: "user-menu-btn" },
+            [SCENES.KB4_DASHBOARD]: { instruction: "You're in the KnowBe4 Admin Console. Start by navigating to the Account Settings. Click your user profile in the top right.", target: "user-menu-btn" },
             [SCENES.KB4_SETTINGS_LANDING]: { instruction: "In Account Settings, navigate to the 'Account Integrations' tab to set up the connection.", target: "tab-integrations" },
             [SCENES.KB4_API_KEYS]: { instruction: "Generate a User Event API Key to allow Dashlane to push risk data.", target: "create-key-btn" },
-            [SCENES.DASHLANE_SETUP]: { instruction: "Switch to the Dashlane Admin Console. Configure the new 'KnowBe4' integration.", target: "kb4-card-btn" },
+            [SCENES.DASHLANE_SETUP]: { instruction: "Now you're in the Dashlane Admin Console. Configure the new 'KnowBe4' integration.", target: "kb4-card-btn" },
             [SCENES.DASHLANE_SIMULATE]: { instruction: "The integration is live. Choose a simulation scenario to test the data flow.", target: "sim-console-area" }, 
-            [SCENES.KB4_TIMELINE]: { instruction: "Back in KnowBe4, verify the event in the Timeline. To take action, click the 'Groups' sub-tab.", target: "subnav-groups" },
+            [SCENES.KB4_TIMELINE]: { instruction: "Back in the KnowBe4 Admin Console, verify the Dashlane event in the User Timeline. To take action, click the 'Groups' sub-tab.", target: "subnav-groups" },
             [SCENES.KB4_SMART_GROUP]: { instruction: "Create a 'Smart Group' that automatically catches anyone who triggers this specific Dashlane event.", target: "save-group-btn" },
             [SCENES.KB4_TRAINING_TRANSITION]: { instruction: "Great. The group is ready. Now go to the 'Training' tab to create the remediation campaign.", target: "nav-training" },
             [SCENES.KB4_CAMPAIGN]: { instruction: "Finally, create a Remedial Training Campaign that targets that Smart Group.", target: "content-dropdown" }
